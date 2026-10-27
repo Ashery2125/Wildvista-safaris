@@ -1,0 +1,52 @@
+name: Extract website archive
+
+on:
+  push:
+    paths:
+      - 'htdocs (8).zip'
+      - '.github/workflows/extract-site.yml'
+  workflow_dispatch:
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Unzip archive into a temp folder
+        run: |
+          mkdir -p extracted
+          if [ -f "htdocs (8).zip" ]; then
+            unzip -o "htdocs (8).zip" -d extracted
+          else
+            echo "Archive not found: htdocs (8).zip"
+            exit 1
+          fi
+          echo "--- extracted top level ---"
+          find extracted -maxdepth 2 -mindepth 1 | sort | head -200
+
+      - name: Move extracted site content to repo root
+        run: |
+          if [ -d "extracted/htdocs" ]; then
+            cp -a extracted/htdocs/. .
+          else
+            cp -a extracted/. .
+          fi
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No files changed. Nothing to commit."
+            exit 0
+          fi
+          git commit -m "Extract website source files"
+          git push
